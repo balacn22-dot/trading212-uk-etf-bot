@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trading 212 UK GBP ETF Bot — Control Centre</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo-badge">T212</div>
+        <div>
+          <h1>Trading 212 UK ETF Daily Bot</h1>
+          <p class="subtitle">0% Stamp Duty · 0% FX Fee · LSE GBP ETFs (ISA &amp; Invest)</p>
+        </div>
+      </div>
+
+      <div class="status-pills">
+        <span id="modeBadge" class="pill pill-demo">PRACTICE / DEMO</span>
+        <span id="marketBadge" class="pill pill-neutral">Checking LSE...</span>
+        <span id="autoBadge" class="pill pill-neutral">Auto-Trade: OFF</span>
+        <button id="refreshBtn" class="btn btn-secondary btn-sm">Refresh</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Alert Banner -->
+      <div id="alertBanner" class="alert-banner hidden"></div>
+
+      <!-- KPI Summary Row -->
+      <section class="kpi-grid">
+        <div class="card kpi-card">
+          <span class="kpi-label">Account Status</span>
+          <div id="kpiConnection" class="kpi-value">Not Connected</div>
+          <span id="kpiEnvDetail" class="kpi-sub">Add API Key in Settings below</span>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-label">Free Cash (GBP)</span>
+          <div id="kpiFreeCash" class="kpi-value">£0.00</div>
+          <span id="kpiTotalCash" class="kpi-sub">Total Account: £0.00</span>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-label">Open Portfolio P&amp;L</span>
+          <div id="kpiPpl" class="kpi-value">£0.00</div>
+          <span id="kpiPositionsCount" class="kpi-sub">0 Open ETF Positions</span>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-label">Active Risk Guardrails</span>
+          <div id="kpiRiskMain" class="kpi-value">£200 / ETF</div>
+          <span id="kpiRiskSub" class="kpi-sub">-3.5% Stop · +7.5% Target · £30 Daily Cap</span>
+        </div>
+      </section>
+
+      <!-- Today's Signals & Execution Controls -->
+      <section class="card">
+        <div class="section-header">
+          <div>
+            <h2>Today's UK GBP ETF Signals</h2>
+            <p class="muted">
+              Dual-Confirmation Strategy: 50-Day Uptrend Filter + RSI(14) Value Pullback / 20-Day Momentum
+            </p>
+          </div>
+          <div class="action-group">
+            <button id="dryRunBtn" class="btn btn-secondary">
+              Preview Orders (Dry Run)
+            </button>
+            <button id="executeCycleBtn" class="btn btn-primary">
+              Execute Today's Cycle
+            </button>
+          </div>
+        </div>
+
+        <div id="cyclePreviewBox" class="preview-box hidden"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ETF</th>
+                <th>Name &amp; LSE Ticker</th>
+                <th>Price (£)</th>
+                <th>1D %</th>
+                <th>EMA 20 / SMA 50</th>
+                <th>RSI (14)</th>
+                <th>Signal</th>
+                <th>Score</th>
+                <th>Strategy Reasoning</th>
+              </tr>
+            </thead>
+            <tbody id="signalsTableBody">
+              <tr>
+                <td colspan="9" class="muted center">Loading live UK ETF market data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Two-Column Layout: Backtester + API/Risk Settings -->
+      <section class="two-col">
+        <!-- Backtest Lab -->
+        <div class="card">
+          <div class="section-header">
+            <div>
+              <h2>Strategy Backtester (£ GBP)</h2>
+              <p class="muted">
+                Simulates exact bot rules across all 5 UK ETFs including LSE bid/ask spread slippage
+              </p>
+            </div>
+            <div class="inline-controls">
+              <select id="btDaysSelect" class="input-sm">
+                <option value="180">Last 6 Months</option>
+                <option value="365" selected>Last 1 Year</option>
+                <option value="500">Last ~2 Years</option>
+              </select>
+              <input
+                id="btCapitalInput"
+                type="number"
+                class="input-sm"
+                value="2000"
+                min="100"
+                step="100"
+                title="Starting Capital (£)"
+              />
+              <button id="runBacktestBtn" class="btn btn-primary btn-sm">
+                Run Backtest
+              </button>
+            </div>
+          </div>
+
+          <div class="bt-metrics" id="btMetrics">
+            <div class="bt-stat">
+              <span>Final Equity</span>
+              <strong id="btFinalEquity">—</strong>
+            </div>
+            <div class="bt-stat">
+              <span>Bot Return</span>
+              <strong id="btReturn">—</strong>
+            </div>
+            <div class="bt-stat">
+              <span>VUAG Buy &amp; Hold</span>
+              <strong id="btBench">—</strong>
+            </div>
+            <div class="bt-stat">
+              <span>Max Drawdown</span>
+              <strong id="btDrawdown">—</strong>
+            </div>
+            <div class="bt-stat">
+              <span>Win Rate</span>
+              <strong id="btWinRate">—</strong>
+            </div>
+          </div>
+
+          <div class="chart-box">
+            <canvas id="equityCanvas" width="680" height="230"></canvas>
+            <div class="chart-legend">
+              <span><i class="dot dot-bot"></i> Bot Portfolio (£)</span>
+              <span><i class="dot dot-bench"></i> S&amp;P 500 (VUAG) Buy &amp; Hold (£)</span>
+            </div>
+          </div>
+
+          <details class="trades-drawer">
+            <summary>View Historical Simulated Trades (<span id="btTradeCount">0</span>)</summary>
+            <div class="table-wrap compact-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ETF</th>
+                    <th>Entry → Exit</th>
+                    <th>Entry / Exit (£)</th>
+                    <th>P&amp;L (£)</th>
+                    <th>Exit Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="btTradesBody"></tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+
+        <!-- Settings & Private API Credentials -->
+        <div class="card">
+          <h2>Trading 212 Connection &amp; Risk Settings</h2>
+          <p class="muted small-gap">
+            Your API Key &amp; Secret are saved <strong>strictly on your own computer</strong> in
+            <code>D:\APPS\Trading212Bot\.env</code> (withdrawals are impossible via Trading 212 API).
+          </p>
+
+          <div class="how-to-box">
+            <strong>How to get your Trading 212 API Key (takes 30 seconds):</strong>
+            <ol>
+              <li>Open Trading 212 (switch to <strong>Practice Mode</strong> first to test safely!).</li>
+              <li>Tap <strong>Menu (☰) → Settings → API (Beta) → Generate API key</strong>.</li>
+              <li>Tick <em>Account data, Portfolio, Metadata, and Orders</em>, then paste both keys below.</li>
+            </ol>
+          </div>
+
+          <form id="settingsForm" class="settings-form">
+            <div class="form-row">
+              <label for="envSelect">Trading Environment</label>
+              <select id="envSelect">
+                <option value="demo">Practice / Demo Mode (Virtual Money — Safe Default)</option>
+                <option value="live">LIVE Mode (Real Money — Stocks ISA / Invest)</option>
+              </select>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-row">
+                <label for="apiKeyInput">API Key <span id="keyMaskHint" class="muted"></span></label>
+                <input
+                  id="apiKeyInput"
+                  type="password"
+                   autocomplete="off"
+                  placeholder="Paste new API Key (leave blank to keep existing)"
+                />
+              </div>
+              <div class="form-row">
+                <label for="apiSecretInput">API Secret Key</label>
+                <input
+                  id="apiSecretInput"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="Paste API Secret (leave blank to keep existing)"
+                />
+              </div>
+            </div>
+
+            <div class="form-grid-3">
+              <div class="form-row">
+                <label for="maxPositionInput">Max £ Per ETF</label>
+                <input id="maxPositionInput" type="number" min="10" step="10" value="200" />
+              </div>
+              <div class="form-row">
+                <label for="maxOpenInput">Max Open ETFs</label>
+                <input id="maxOpenInput" type="number" min="1" max="5" step="1" value="3" />
+              </div>
+              <div class="form-row">
+                <label for="dailyLossInput">Max Daily Loss (£)</label>
+                <input id="dailyLossInput" type="number" min="5" step="5" value="30" />
+              </div>
+            </div>
+
+            <div class="form-grid-3">
+              <div class="form-row">
+                <label for="stopLossInput">Stop-Loss (%)</label>
+                <input id="stopLossInput" type="number" min="0.5" step="0.5" value="3.5" />
+              </div>
+              <div class="form-row">
+                <label for="takeProfitInput">Take-Profit (%)</label>
+                <input id="takeProfitInput" type="number" min="1" step="0.5" value="7.5" />
+              </div>
+              <div class="form-row">
+                <label for="runTimeInput">Daily UK Check Time</label>
+                <input id="runTimeInput" type="time" value="14:45" />
+              </div>
+            </div>
+
+            <label class="checkbox-row">
+              <input id="autoTradeCheckbox" type="checkbox" />
+              <span>
+                Enable Automated Daily Trading at scheduled UK time (runs while this window is open)
+              </span>
+            </label>
+
+            <div class="btn-row">
+              <button type="submit" class="btn btn-primary">Save Settings</button>
+              <button type="button" id="testConnBtn" class="btn btn-secondary">
+                Test T212 Connection
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Bottom Row: Open Holdings + Bot Activity Audit Log -->
+      <section class="two-col">
+        <div class="card">
+          <h2>Current Trading 212 Holdings</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Qty</th>
+                  <th>Avg Entry (£)</th>
+                  <th>Current (£)</th>
+                  <th>Value (£)</th>
+                  <th>P&amp;L (£)</th>
+                </tr>
+              </thead>
+              <tbody id="portfolioBody">
+                <tr>
+                  <td colspan="6" class="muted center">No open positions</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Bot Activity &amp; Safety Audit Log</h2>
+          <div id="activityLogBox" class="log-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

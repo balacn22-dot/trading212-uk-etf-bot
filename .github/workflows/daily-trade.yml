@@ -1,0 +1,65 @@
+name: Trading 212 Daily UK ETF Bot
+
+on:
+  # Runs automatically Mon–Fri during London Stock Exchange hours (PC can stay completely OFF):
+  #  - 09:10 UTC: Morning check after LSE opening auction spread settles
+  #  - 12:30 UTC: Midday stop-loss & signal check
+  #  - 14:45 UTC: Main afternoon check (US + UK market overlap = tightest spreads)
+  schedule:
+    - cron: "10 9 * * 1-5"
+    - cron: "30 12 * * 1-5"
+    - cron: "45 14 * * 1-5"
+
+  # Allows 1-click manual run anytime from GitHub web or mobile app
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run preview only (true = do NOT place orders, false = place orders if LSE is open)"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+# Prevent two runs from overlapping
+concurrency:
+  group: trading212-uk-etf-bot
+  cancel-in-progress: false
+
+jobs:
+  trade-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run Trading 212 UK ETF Cycle
+        env:
+          # Required GitHub Secrets (Settings -> Secrets and variables -> Actions)
+          T212_API_KEY: ${{ secrets.T212_API_KEY }}
+          T212_API_SECRET: ${{ secrets.T212_API_SECRET }}
+          # Set T212_ENV secret to 'demo' (default) or 'live' when ready for real money
+          T212_ENV: ${{ secrets.T212_ENV || 'demo' }}
+
+          # Optional Risk Overrides (defaults are safe if omitted)
+          MAX_POSITION_GBP: ${{ secrets.MAX_POSITION_GBP || '200' }}
+          MAX_OPEN_POSITIONS: ${{ secrets.MAX_OPEN_POSITIONS || '3' }}
+          STOP_LOSS_PCT: ${{ secrets.STOP_LOSS_PCT || '3.5' }}
+          TAKE_PROFIT_PCT: ${{ secrets.TAKE_PROFIT_PCT || '7.5' }}
+          MAX_DAILY_LOSS_GBP: ${{ secrets.MAX_DAILY_LOSS_GBP || '30' }}
+
+          # Optional Telegram Alerts
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+          # Respect manual workflow_dispatch dry_run input (scheduled runs execute live/demo orders)
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        run: node src/cloudRun.js

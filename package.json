@@ -1,0 +1,15 @@
+{
+  "name": "trading212-uk-etf-bot",
+  "version": "1.0.0",
+  "description": "Automated UK GBP ETF Daily Trading Bot & Web Dashboard for Trading 212 (Demo & Live ISA/Invest)",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "cloud-run": "node src/cloudRun.js",
+    "test": "node src/selfTest.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

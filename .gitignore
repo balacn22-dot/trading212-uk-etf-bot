@@ -1,0 +1,5 @@
+# Never commit API keys or local trade state
+.env
+node_modules/
+data/*.json
+logs/*.log
