@@ -225,8 +225,8 @@ export class Trading212Client {
    * Positive quantity = BUY, negative quantity = SELL.
    */
   async placeMarketOrder({ ticker, quantity }) {
-    const roundedQty = Number(Number(quantity).toFixed(4));
-    if (!ticker || !Number.isFinite(roundedQty) || Math.abs(roundedQty) < 0.0001) {
+    const numQty = Number(quantity);
+    if (!ticker || !Number.isFinite(numQty) || Math.abs(numQty) < 0.0001) {
       throw new Error(`Invalid market order parameters: ticker=${ticker}, quantity=${quantity}`);
     }
 
@@ -234,7 +234,7 @@ export class Trading212Client {
       method: "POST",
       body: {
         ticker,
-        quantity: roundedQty,
+        quantity: numQty,
       },
     });
   }

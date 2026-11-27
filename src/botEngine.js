@@ -130,8 +130,8 @@ export class BotEngine {
     const nowMins = nowH * 60 + nowM;
     const targetMins = (targetH || 14) * 60 + (targetM || 45);
 
-    // Trigger within a 20-minute window after DAILY_RUN_TIME_UK
-    if (nowMins >= targetMins && nowMins <= targetMins + 20) {
+    // Trigger anytime from DAILY_RUN_TIME_UK until LSE close (16:25 UK) if not yet run today
+    if (nowMins >= targetMins) {
       this.state.lastAutoRunDate = uk.ukDate;
       this.saveState();
       this.log("INFO", `Executing scheduled daily UK trade cycle (${uk.ukTime} UK)...`);
@@ -324,7 +324,7 @@ export class BotEngine {
           side: "SELL",
           symbol: sig.symbol,
           ticker: sig.t212Ticker,
-          quantity: -Number(sig.heldQuantity.toFixed(4)),
+          quantity: -Number(sig.heldQuantity),
           estimatedValueGbp: Number((sig.heldQuantity * sig.priceGbp).toFixed(2)),
           reason: sig.reason,
         };
@@ -338,9 +338,12 @@ export class BotEngine {
         const allocationGbp = Math.min(cfg.maxPositionGbp, freeCashGbp * 0.96);
         if (allocationGbp < 10 || sig.priceGbp <= 0) continue;
 
+        const minStep = Number(sig.minTradeQuantity) || 0.01;
+        const decimals = Math.max(0, Math.min(8, Math.round(-Math.log10(minStep))));
         const rawQty = allocationGbp / sig.priceGbp;
-        const qty = Number(rawQty.toFixed(4));
-        if (qty < sig.minTradeQuantity) continue;
+        const steppedQty = Math.floor(rawQty / minStep) * minStep;
+        const qty = Number(steppedQty.toFixed(decimals));
+        if (qty < minStep) continue;
 
         plannedOrders.push({
           side: "BUY",
